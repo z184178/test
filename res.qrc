@@ -1,0 +1,39 @@
+<RCC>
+    <qresource prefix="/img">
+        <file>image/scene1.jpg</file>
+        <file>image/scene2.jpg</file>
+        <file>image/scene3.jpg</file>
+        <file>image/scene4.jpg</file>
+        <file>image/scene2.txt</file>
+        <file>image/scene3.txt</file>
+        <file>image/scene4.txt</file>
+        <file>image/scene1.txt</file>
+        <file>image/car1.png</file>
+        <file>image/car2.png</file>
+        <file>image/d1.gif</file>
+        <file>image/D1.png</file>
+        <file>image/d2.gif</file>
+        <file>image/D2.png</file>
+        <file>image/d3.gif</file>
+        <file>image/D3.png</file>
+        <file>image/d4.gif</file>
+        <file>image/D4.png</file>
+        <file>image/D11.png</file>
+        <file>image/D12.png</file>
+        <file>image/m1.gif</file>
+        <file>image/m2.gif</file>
+        <file>image/man1.png</file>
+        <file>image/man2.png</file>
+        <file>image/moon_00.png</file>
+        <file>image/moon_0.png</file>
+        <file>image/moon_ap.png</file>
+        <file>image/moon_ap1.png</file>
+        <file>image/moon_ap2.png</file>
+        <file>image/moon_b.png</file>
+        <file>image/moon_car.png</file>
+        <file>image/moon_car1.png</file>
+        <file>image/moon_man.png</file>
+        <file>image/moon_man1.png</file>
+        <file>image/MOON_NET.png</file>
+    </qresource>
+</RCC>
