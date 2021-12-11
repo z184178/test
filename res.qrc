@@ -35,5 +35,18 @@
         <file>image/moon_man.png</file>
         <file>image/moon_man1.png</file>
         <file>image/MOON_NET.png</file>
+        <file>image/car11.png</file>
+        <file>image/car22.png</file>
+        <file>image/DD.png</file>
+        <file>image/earth_ap.png</file>
+        <file>image/man11.png</file>
+        <file>image/man22.png</file>
+        <file>image/me1k.png</file>
+        <file>image/me2k.png</file>
+        <file>image/movie_dd.gif</file>
+        <file>image/MS1G.gif</file>
+        <file>image/MS1K.png</file>
+        <file>image/MS2K.png</file>
+        <file>image/start.png</file>
     </qresource>
 </RCC>

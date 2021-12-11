@@ -12,6 +12,7 @@
 #include <QUdpSocket>
 #include <QHostAddress>
 #include <typeinfo>
+#include "qmath.h"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -31,7 +32,7 @@ MainWindow::MainWindow(QWidget *parent) :
     udpSocket_Remote_master = new QUdpSocket(this);
 
     port = {portn1,portn2,portn3,portn4,portg1,portg2};
-    ctlip<<n1_ctlip<<n2_ctlip<<n3_ctlip<<n4_ctlip<<g1_ctlip<<g2_ctlip;
+    ctlip<<N1_ctlip<<N2_ctlip<<N3_ctlip<<N4_ctlip<<G1_ctlip<<G2_ctlip;
     name<<"节点一"<<"节点二"<<"节点三"<<"节点四"<<"网关一"<<"网关二";
 
     QSharedPointer<QCPAxisTickerTime> timeTicker(new QCPAxisTickerTime);
@@ -43,6 +44,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->pushButton_sim_end->setEnabled(false);
     ui->pushButton_link_start->setEnabled(false);
     ui->pushButton_sim_start->setEnabled(false);
+    ui->pushButton_readserver->setEnabled(false);
 
     ui->widget_delay->addGraph();
     ui->widget_delay->graph(0)->setPen(QPen(Qt::red));
@@ -150,16 +152,26 @@ MainWindow::MainWindow(QWidget *parent) :
 
     timer_checkBox = new QTimer(this);
     timer_checkBox->start(50);
+    timer_count = new QTimer(this);
+    timer_send_topo = new QTimer(this);
+    timercheckconfig = new QTimer(this);
+    dataTimer = new QTimer(this);
 
+
+    connect(timer_count,SIGNAL(timeout()),this,SLOT(every_second()));
     connect(timer_checkBox,SIGNAL(timeout()),this,SLOT(checkbox()));
     connect(topconfig_ui,SIGNAL(send_currentIndex(int)),this,SLOT(receive_currentIndex(int)));
-    connect(&threadA,SIGNAL(newValue(int,int)),this,SLOT(onthreadA_newValue(int,int)));//线程信号槽
+    connect(timer_send_topo,SIGNAL(timeout()),this,SLOT(send_topo()));
+    connect(timercheckconfig,SIGNAL(timeout()),this,SLOT(checkconfig()));//发送链路配置信息
+    connect(timercheckconfig,SIGNAL(timeout()),this,SLOT(checkconfig()));//发送链路配置信息
+    connect(dataTimer,SIGNAL(timeout()),this,SLOT(realtimeDataSlot()));
+
 
     //connect(timerstkrun,SIGNAL(timeout()),this,SLOT(stkrun()));//控制连线
-    //connect(timercheckconfig,SIGNAL(timeout()),this,SLOT(checkconfig()));//发送链路配置信息
+
     //connect(timer_checkconnect,SIGNAL(timeout()),this,SLOT(checkconnect()));
     //connect(timer_delay,SIGNAL(timeout()),this,SLOT(test_delay()));
-    //connect(dataTimer,SIGNAL(timeout()),this,SLOT(realtimeDataSlot()));
+
     //connect(timerflash,SIGNAL(timeout()),this,SLOT(flash()));
 
     //timerflash->start(5000);
@@ -171,6 +183,10 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->label_ap1->setScaledContents(true);
     ui->label_ap2->setPixmap(QPixmap(":/img/image/moon_ap2.png"));
     ui->label_ap2->setScaledContents(true);
+    ui->label_ap3->setPixmap(QPixmap(":/img/image/earth_ap.png"));
+    ui->label_ap3->setScaledContents(true);
+    ui->label_satellite->setPixmap(QPixmap(":/img/image/start.png"));
+    ui->label_satellite->setScaledContents(true);
 
     node_png_path[0] =":/img/image/car1.png";
     node_png_path[1] = ":/img/image/man1.png";
@@ -203,8 +219,19 @@ MainWindow::MainWindow(QWidget *parent) :
     movied3 = new QMovie(":/img/image/d3.gif");
     movied3->setScaledSize(movieSize3);
 
+    QSize moviesizeAp(180,40);
+    moviedap = new QMovie(":/img/image/movie_dd.gif");
+    moviedap->setScaledSize(moviesizeAp);
 
-    udpSocket_Remote_master->bind(ip_Remote_master, port_Remote_master);
+    //AP之间建立连接
+    ui->label_mdd->setMovie(moviedap);
+
+
+
+    moveGif_clear();
+
+
+    //udpSocket_Remote_master->bind(ip_Remote_master, port_Remote_master);
         connect(udpSocket_Remote_master, &QUdpSocket::readyRead,[=](){
             while(udpSocket_Remote_master->hasPendingDatagrams()) //拥有等待的数据报
             {
@@ -380,15 +407,23 @@ void MainWindow::on_pushButton_sim_start_clicked()
     ui->pushButton_sim_end->setEnabled(true);
     ui->pushButton_link_start->setEnabled(true);
     ui->pushButton_sim_start->setEnabled(false);
+
+    //timer_send_topo->start(1000);
+    moviedap->start();
+
     readTopoTxt(sceneIndex);
-    threadA.topoBegin();
+    timer_count->start(1000);
+    timercheckconfig->start(1000);
 
 
 }
 
 void MainWindow::on_pushButton_sim_end_clicked()
 {
-    threadA.topoPause();
+    //timer_send_topo->stop();
+    timer_count->stop();
+    timercheckconfig->stop();
+    moveGif_clear();
 
     ui->pushButton_start->setEnabled(false);
     ui->pushButton_end->setEnabled(true);
@@ -413,9 +448,9 @@ void MainWindow::on_pushButton_link_start_clicked()
     ui->pushButton_sim_end->setEnabled(true);
     ui->pushButton_link_start->setEnabled(false);
     ui->pushButton_sim_start->setEnabled(false);
-   udpConnect("linktest_start");
-   udpConnect("ping*10.0.5.134");
-   ui->textEdit_log->append("链路测试开始");
+    udpConnect("linktest_start");
+    Test_link();
+    ui->textEdit_log->append("链路测试开始");
 }
 
 void MainWindow::on_pushButton_link_end_clicked()
@@ -426,6 +461,7 @@ void MainWindow::on_pushButton_link_end_clicked()
     ui->pushButton_sim_end->setEnabled(true);
     ui->pushButton_link_start->setEnabled(true);
     ui->pushButton_sim_start->setEnabled(false);
+    udpConnect("linktest_end");
     ui->textEdit_log->append("链路测试结束");
 }
 
@@ -537,6 +573,10 @@ void MainWindow::moveGif_clear()
     ui->label_top_10->clear();
     ui->label_top_11->clear();
     ui->label_top_12->clear();
+    ui->label_top_13->clear();
+    ui->label_top_14->clear();
+    ui->label_top_15->clear();
+    ui->label_top_16->clear();
     ui->label_m1->clear();
     ui->label_m2->clear();
     ui->label_m3->clear();
@@ -549,30 +589,34 @@ void MainWindow::moveGif_clear()
     ui->label_m10->clear();
     ui->label_m11->clear();
     ui->label_m12->clear();
+    ui->label_m13->clear();
+    ui->label_m14->clear();
+    ui->label_m15->clear();
+    ui->label_m16->clear();
 }
 
 void MainWindow::checkconnect(int send, int receive)
 {
     QString pingdata = "ping*"+QString::number(receive);
-    qDebug()<<pingdata;
+    ui->plainTextEdit_pingInfo->appendPlainText(pingdata);
     switch (send) {
     case 0:
-        udpSocketN1->writeDatagram(pingdata.toUtf8(),QHostAddress(ctlip.at(send)),port[send]);
+        udpSocketN1->writeDatagram(pingdata.toUtf8(),ctlip.at(send),port[send]);
         break;
     case 1:
-        udpSocketN2->writeDatagram(pingdata.toUtf8(),QHostAddress(ctlip.at(send)),port[send]);
+        udpSocketN2->writeDatagram(pingdata.toUtf8(),ctlip.at(send),port[send]);
         break;
     case 2:
-        udpSocketN3->writeDatagram(pingdata.toUtf8(),QHostAddress(ctlip.at(send)),port[send]);
+        udpSocketN3->writeDatagram(pingdata.toUtf8(),ctlip.at(send),port[send]);
         break;
     case 3:
-        udpSocketN4->writeDatagram(pingdata.toUtf8(),QHostAddress(ctlip.at(send)),port[send]);
+        udpSocketN4->writeDatagram(pingdata.toUtf8(),ctlip.at(send),port[send]);
         break;
     case 4:
-        udpSocketG1->writeDatagram(pingdata.toUtf8(),QHostAddress(ctlip.at(send)),port[send]);
+        udpSocketG1->writeDatagram(pingdata.toUtf8(),ctlip.at(send),port[send]);
         break;
     case 5:
-        udpSocketG2->writeDatagram(pingdata.toUtf8(),QHostAddress(ctlip.at(send)),port[send]);
+        udpSocketG2->writeDatagram(pingdata.toUtf8(),ctlip.at(send),port[send]);
         break;
     default:
         qDebug()<<"测ping异常";
@@ -584,16 +628,18 @@ void MainWindow::checkconnect(int send, int receive)
 
 void MainWindow::setupRealtimeDataDemo()
 {
-
+    dataTimer->start(500);
 }
 
 void MainWindow::Test_link()
 {
-
+  setupRealtimeDataDemo();
 }
 
 void MainWindow::checkbox()//接入不可多选
 {
+
+
     ui->checkBox_local->setEnabled(true);
     ui->checkBox_server->setEnabled(true);
     ui->checkBox_test->setEnabled(true);
@@ -608,14 +654,26 @@ void MainWindow::checkbox()//接入不可多选
       {
         ui->checkBox_local->setEnabled(false);
         ui->checkBox_test->setEnabled(false);
+        ui->pushButton_readserver->setEnabled(true);
         //type = 2;
-      }
+    }else{
+        ui->pushButton_readserver->setEnabled(false);
+    }
     if(ui->checkBox_test->isChecked()==true)
       {
         ui->checkBox_local->setEnabled(false);
         ui->checkBox_server->setEnabled(false);
         //type = 0;
       }
+    if(ui->pushButton_start->isEnabled()==true){
+        ui->checkBox_local->setEnabled(true);
+        ui->checkBox_server->setEnabled(true);
+        ui->checkBox_test->setEnabled(true);
+    }else{
+        ui->checkBox_local->setEnabled(false);
+        ui->checkBox_server->setEnabled(false);
+        ui->checkBox_test->setEnabled(false);
+    }
 
 
 }
@@ -625,32 +683,13 @@ void MainWindow::on_pushButton_readserver_clicked()
 
 }
 
-void MainWindow::closeEvent(QCloseEvent *event)
-{
-    //窗口关闭事件，必须结束线程
-        if (threadA.isRunning())
-        {
-            threadA.stopThread();
-            threadA.wait();
-        }
-        event->accept();
-}
-
-void MainWindow::onthreadA_started()
-{//线程的started()信号的响应槽函数
-    //ui->label->setText("Thread状态：thread started");
-}
-
-void MainWindow::onthreadA_finished()
-{//线程的 finished()信号的响应槽函数
-    //ui->label->setText("Thread状态：thread finished");
-}
-
-void MainWindow::onthreadA_newValue(int seq, int topoValue)
+void MainWindow::send_topo()
 {   // QString  str =QString::asprintf("第 %d 次发topo",seq);
      //ui->textEdit_log->append(str);
 
-      switch (topoValue) {
+    count++;
+    topoVlaue=count%4;
+    switch (topoVlaue) {
       case 1:
           udpConnect(T1);
           qDebug()<<"发送T1时刻拓扑"<<T1;
@@ -679,12 +718,16 @@ void MainWindow::readPendingDatagrams_listentoG1()
     bufG1.resize(udpSocketG1->pendingDatagramSize());
     udpSocketG1->readDatagram(bufG1.data(),bufG1.size());
     QString udpbuf_0;//文件头部标识
-    udpbuf_0 = QString(bufG1).section("##",0,0);
-    if (QString(bufG1)=="网关一已连接")
+    QString udpbuf_1;
+    int second_1_num;
+    udpbuf_0 = QString(bufG1).section("*",0,0);
+    udpbuf_1 = QString(bufG1).section("*",1,1);
+    if (QString(udpbuf_0)=="main_top")
      {
-      //ui->lineEdit_access_g1->setText("网关一已连接");
+        second_1_num = udpbuf_1.toInt();
+        second_1 =num_to_vector(second_1_num);
      }
-    //qDebug()<<QString(bufG1);
+    qDebug()<<"bufG1 = "<<QString(bufG1);
     //ui->textEdit_log->append("G1:"+QString(bufG1));
     if(ui->comboBox_sendPing->currentIndex() == 4){
         ui->plainTextEdit_pingInfo->appendPlainText("G1:"+QString(bufG1));
@@ -694,16 +737,23 @@ void MainWindow::readPendingDatagrams_listentoG1()
 void MainWindow::readPendingDatagrams_listentoG2()
 {
     QByteArray bufG2; //拥于存放接收的数据报
-    //qDebug()<<"bufG2 = "<<bufG2;
     bufG2.resize(udpSocketG2->pendingDatagramSize());
     udpSocketG2->readDatagram(bufG2.data(),bufG2.size());
     QString udpbuf_0;//文件头部标识
-    udpbuf_0 = QString(bufG2).section("##",0,0);
+    QString udpbuf_1;
+    int second_2_num;
+    udpbuf_0 = QString(bufG2).section("*",0,0);
+    udpbuf_1 = QString(bufG2).section("*",1,1);
+    if (QString(udpbuf_0)=="main_top")
+     {
+        second_2_num = udpbuf_1.toInt();
+        second_2 =num_to_vector(second_2_num);
+     }
     if (QString(bufG2)=="网关二已连接")
     {
       //ui->lineEdit_access_g2->setText("网关二已连接");
     }
-    //qDebug()<<QString(bufG2);
+    qDebug()<<"bufG2 = "<<QString(bufG2);
     //ui->textEdit_log->append("G2:"+QString(bufG2));
     if(ui->comboBox_sendPing->currentIndex() == 5){
         ui->plainTextEdit_pingInfo->appendPlainText("G2:"+QString(bufG2));
@@ -715,10 +765,18 @@ void MainWindow::readPendingDatagrams_listentoN1()
     QByteArray bufN1; //拥于存放接收的数据报
     bufN1.resize(udpSocketN1->pendingDatagramSize());
     udpSocketN1->readDatagram(bufN1.data(),bufN1.size());
+    QString udpbuf_0;//文件头部标识
+    QString udpbuf_1;
+    udpbuf_0 = QString(bufN1).section("*",0,0);
+    udpbuf_1 = QString(bufN1).section("*",1,1);
+    if (QString(udpbuf_0)=="main_top")
+     {
+        multi_hop_vector(1,udpbuf_1);
+     }
     //qDebug()<<QString(bufN1);
     ui->textEdit_log->append("N1:"+QString(bufN1));
     if(ui->comboBox_sendPing->currentIndex() == 0){
-        ui->plainTextEdit_pingInfo->appendPlainText("N1:"+QString(bufN1));
+        //ui->plainTextEdit_pingInfo->appendPlainText("N1:"+QString(bufN1));
     }
 }
 
@@ -761,7 +819,6 @@ void MainWindow::readPendingDatagrams_listentoN4()
 
 void MainWindow::on_pushButton_start_clicked()
 {
-    threadA.start();//开启线程
     ui->pushButton_start->setEnabled(false);
     ui->pushButton_end->setEnabled(false);
     ui->pushButton_link_end->setEnabled(false);
@@ -773,10 +830,6 @@ void MainWindow::on_pushButton_start_clicked()
 
 void MainWindow::on_pushButton_end_clicked()
 {
-    threadA.stopThread();//结束线程的run()函数执行
-    threadA.wait();
-    moveGif_clear();
-
     ui->pushButton_start->setEnabled(true);
     ui->pushButton_end->setEnabled(false);
     ui->pushButton_link_end->setEnabled(false);
@@ -795,4 +848,307 @@ void MainWindow::on_pushButton_pingTest_clicked()
 {
    checkconnect(ui->comboBox_sendPing->currentIndex(),ui->comboBox_receivePing->currentIndex());
    qDebug()<<"开始测ping";
+}
+
+void MainWindow::every_second()
+{
+    moveGif_clear();
+
+    int everynum;
+
+    foreach(everynum,second_1){
+        //qDebug()<<everynum;
+        switch (everynum-1) {
+        case 0:
+            ui->label_top_1->setPixmap(QPixmap(node_png_path[0]));
+            ui->label_top_1->setScaledContents(true);
+            ui->label_m1->setMovie(movied2);
+            movied2->start();
+            break;
+        case 1:
+            ui->label_top_2->setPixmap(QPixmap(node_png_path[1]));
+            ui->label_top_2->setScaledContents(true);
+            ui->label_m2->setMovie(movied1);
+            movied1->start();
+            break;
+        case 2:
+            ui->label_top_3->setPixmap(QPixmap(node_png_path[2]));
+            ui->label_top_3->setScaledContents(true);
+            ui->label_m3->setMovie(movied3);
+            movied3->start();
+            break;
+        case 3:
+            ui->label_top_4->setPixmap(QPixmap(node_png_path[3]));
+            ui->label_top_4->setScaledContents(true);
+            ui->label_m4->setMovie(movied4);
+            movied4->start();
+            break;
+        default:
+            break;
+        }
+        qDebug()<<"G1: "<<everynum-1;
+    }
+    foreach(everynum,second_2){
+        switch (everynum-1) {
+        case 0:
+            ui->label_top_5->setPixmap(QPixmap(node_png_path[0]));
+            ui->label_top_5->setScaledContents(true);
+            ui->label_m5->setMovie(movied2);
+            movied2->start();
+            break;
+        case 1:
+            ui->label_top_6->setPixmap(QPixmap(node_png_path[1]));
+            ui->label_top_6->setScaledContents(true);
+            ui->label_m6->setMovie(movied1);
+            movied1->start();
+            break;
+        case 2:
+            ui->label_top_7->setPixmap(QPixmap(node_png_path[2]));
+            ui->label_top_7->setScaledContents(true);
+            ui->label_m7->setMovie(movied3);
+            movied3->start();
+            break;
+        case 3:
+            ui->label_top_8->setPixmap(QPixmap(node_png_path[3]));
+            ui->label_top_8->setScaledContents(true);
+            ui->label_m8->setMovie(movied4);
+            movied4->start();
+            break;
+        default:
+            break;
+        }
+        qDebug()<<"G2: "<<everynum-1;
+    }
+    foreach (everynum, third_1) {
+        switch (everynum/10-1) {
+        case 0:
+            ui->label_top_13->setPixmap(QPixmap(node_png_path[everynum%10-1]));
+            ui->label_top_13->setScaledContents(true);
+            ui->label_m13->setMovie(movied1);
+            movied1->start();
+            break;
+        case 1:
+            ui->label_top_9->setPixmap(QPixmap(node_png_path[everynum%10-1]));
+            ui->label_top_9->setScaledContents(true);
+            ui->label_m9->setMovie(movied3);
+            movied3->start();
+            break;
+        case 2:
+            ui->label_top_10->setPixmap(QPixmap(node_png_path[everynum%10-1]));
+            ui->label_top_10->setScaledContents(true);
+            ui->label_m10->setMovie(movied3);
+            movied3->start();
+            break;
+        case 3:
+            ui->label_top_14->setPixmap(QPixmap(node_png_path[everynum%10-1]));
+            ui->label_top_14->setScaledContents(true);
+            ui->label_m14->setMovie(movied1);
+            movied1->start();
+            break;
+        default:
+            break;
+        }
+        qDebug()<<"左多跳: "<<everynum-1;
+    }
+    foreach (everynum, third_2) {
+        switch (everynum/10-1) {
+        case 0:
+            ui->label_top_15->setPixmap(QPixmap(node_png_path[everynum%10-1]));
+            ui->label_top_15->setScaledContents(true);
+            ui->label_m15->setMovie(movied1);
+            movied1->start();
+            break;
+        case 1:
+            ui->label_top_11->setPixmap(QPixmap(node_png_path[everynum%10-1]));
+            ui->label_top_11->setScaledContents(true);
+            ui->label_m11->setMovie(movied3);
+            movied3->start();
+            break;
+        case 2:
+            ui->label_top_12->setPixmap(QPixmap(node_png_path[everynum%10-1]));
+            ui->label_top_12->setScaledContents(true);
+            ui->label_m12->setMovie(movied3);
+            movied3->start();
+            break;
+        case 3:
+            ui->label_top_16->setPixmap(QPixmap(node_png_path[everynum%10-1]));
+            ui->label_top_16->setScaledContents(true);
+            ui->label_m16->setMovie(movied1);
+            movied1->start();
+            break;
+        default:
+            break;
+        }
+        qDebug()<<"右多跳: "<<everynum-1;
+    }
+
+
+    second_1.clear();
+    second_2.clear();
+    third_1.clear();
+    third_2.clear();
+}
+
+QVector<int> MainWindow::num_to_vector(int num)
+{
+    int numsize=0;
+    int a = 1;
+    QVector<int> arr;
+    while(num/a!=0){
+        ++numsize;
+        arr.push_front((num%(a*10)-num%(a))/a);
+        a = qPow(10,numsize);
+    }
+    return arr;
+}
+
+QVector<int> MainWindow::two_vector_bu(QVector<int> a, QVector<int> b)
+{
+    int delete_num;
+    foreach (delete_num, b) {
+        a.removeOne(delete_num);
+    }
+    a.removeOne(4);
+    a.removeOne(5);
+
+    return  a;
+}
+
+void MainWindow::multi_hop_vector(int num, QString str)
+{
+    bool isExitG1;
+    bool isExitG2;
+    int tmp;
+    QVector<int> a;//字符串转为的数组
+    QVector<int> bl;//包含左多跳节点的数组
+    QVector<int> br;//包含右多跳节点的数组
+    a=num_to_vector(str.toInt());
+    foreach (tmp, a) {
+        if(tmp==5)
+            isExitG1 = true;
+        else
+            isExitG1 = false;
+        if(tmp==6)
+            isExitG2 = true;
+        else
+            isExitG2 = false;
+    }
+
+    if(isExitG1==true){
+        bl=two_vector_bu(a,second_1);
+        foreach (tmp, bl) {
+            third_1.push_back(num*10+tmp);
+            qDebug()<<tmp;
+        }
+    }
+    if(isExitG2==true){
+        br=two_vector_bu(a,second_2);
+        foreach (tmp, br) {
+            third_2.push_back(num*10+tmp);
+        }
+    }
+}
+void MainWindow::checkconfig(){
+    if(ui->lineEdit_delay_D1_7->text().isEmpty() == true || ui->lineEdit_loss_D1_7->text().isEmpty() == true)
+    {
+        QString N1 = QString("link_config*0#0");
+        udpSocketN1->writeDatagram(N1.toUtf8(),N1_ctlip,portn1);
+    }
+    else
+    {
+        QString N1 = QString("link_config*%1#%2").arg(ui->lineEdit_delay_D1_7->text().toDouble()).arg(ui->lineEdit_loss_D1_7->text().toDouble());
+        udpSocketN1->writeDatagram(N1.toUtf8(),N1_ctlip,portn1);
+    }
+
+    if(ui->lineEdit_delay_D2_7->text().isEmpty() == true || ui->lineEdit_loss_D2_7->text().isEmpty() == true)
+    {
+        QString N2 = QString("link_config*0#0");
+        udpSocketN2->writeDatagram(N2.toUtf8(),N2_ctlip,portn2);
+    }
+    else
+    {
+        QString N2 = QString("link_config*%1#%2").arg(ui->lineEdit_delay_D2_7->text().toDouble()).arg(ui->lineEdit_loss_D2_7->text().toDouble());
+        udpSocketN2->writeDatagram(N2.toUtf8(),N2_ctlip,portn2);
+    }
+
+    if(ui->lineEdit_delay_D3_7->text().isEmpty() == true || ui->lineEdit_loss_D3_7->text().isEmpty() == true)
+    {
+        QString N3 = QString("link_config*0#0");
+        udpSocketN3->writeDatagram(N3.toUtf8(),N3_ctlip,portn3);
+    }
+    else
+    {
+        QString N3 = QString("link_config*%1#%2").arg(ui->lineEdit_delay_D3_7->text().toDouble()).arg(ui->lineEdit_loss_D3_7->text().toDouble());
+        udpSocketN3->writeDatagram(N3.toUtf8(),N3_ctlip,portn3);
+    }
+
+    if(ui->lineEdit_delay_D4_7->text().isEmpty() == true || ui->lineEdit_loss_D4_7->text().isEmpty() == true)
+    {
+        QString N4 = QString("link_config*0#0");
+        udpSocketN4->writeDatagram(N4.toUtf8(),N4_ctlip,portn4);
+    }
+    else
+    {
+        QString N4 = QString("link_config*%1#%2").arg(ui->lineEdit_delay_D4_7->text().toDouble()).arg(ui->lineEdit_loss_D4_7->text().toDouble());
+        udpSocketN4->writeDatagram(N4.toUtf8(),N4_ctlip,portn4);
+    }
+
+}
+
+int MainWindow::MainWindow::getRandom(int min, int max)
+{
+    int a[max-min];
+    int i;
+    for(i=min; i<=max-min-1; ++i) a[i]=i;
+    for(i=max-min-1; i>=min; --i) std::swap(a[i], a[rand()%i]);
+    count_j++;
+    return a[count_j];
+
+}
+
+void MainWindow::realtimeDataSlot()
+{
+    static QTime time(QTime::currentTime());
+
+    double key = time.elapsed()/1000.0; // 开始到现在的时间，单位秒
+    static double lastPointKey = 0;
+    delay1[0] = getRandom(100,500);
+    qDebug()<<delay1[0];
+
+    if (key-lastPointKey > 1) // 大约2s添加一次数据
+    {
+
+        ui->widget_delay->graph(0)->addData(key, delay1[0]);
+        ui->widget_error->graph(0)->addData(key, error1[0]);
+        ui->widget_band->graph(0)->addData(key, bandwidth1[0]);
+
+
+        // 添加数据到graph
+        ui->widget_delay->graph(1)->addData(key, delay2[0]);
+        ui->widget_error->graph(1)->addData(key, error2[0]);
+        ui->widget_band->graph(1)->addData(key, bandwidth2[0]);
+
+        ui->widget_delay->graph(2)->addData(key, delay3[0]);
+        ui->widget_error->graph(2)->addData(key, error3[0]);
+       ui->widget_band->graph(2)->addData(key, bandwidth3[0]);
+
+
+       // 添加数据到graph
+       ui->widget_delay->graph(3)->addData(key, delay4[0]);
+       ui->widget_error->graph(3)->addData(key, error4[0]);
+       ui->widget_band->graph(3)->addData(key, bandwidth4[0]);
+
+      //记录当前时刻
+      lastPointKey = key;
+    }
+
+    // 曲线能动起来的关键在这里，设定x轴范围为最近8个时刻
+    ui->widget_delay->xAxis->setRange(key, 80, Qt::AlignRight);
+    ui->widget_error->xAxis->setRange(key, 70, Qt::AlignRight);
+    ui->widget_band->xAxis->setRange(key, 60, Qt::AlignRight);
+
+    //绘图
+    ui->widget_delay->replot();
+    ui->widget_error->replot();
+    ui->widget_band->replot();
 }

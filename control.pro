@@ -31,14 +31,12 @@ SOURCES += \
         main.cpp \
         mainwindow.cpp \
     topconf.cpp \
-    qcustomplot.cpp \
-    topothread.cpp
+    qcustomplot.cpp
 
 HEADERS += \
         mainwindow.h \
     topconf.h \
-    qcustomplot.h \
-    topothread.h
+    qcustomplot.h
 
 FORMS += \
         mainwindow.ui \
