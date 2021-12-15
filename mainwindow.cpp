@@ -162,8 +162,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(timer_checkBox,SIGNAL(timeout()),this,SLOT(checkbox()));
     connect(topconfig_ui,SIGNAL(send_currentIndex(int)),this,SLOT(receive_currentIndex(int)));
     connect(timer_send_topo,SIGNAL(timeout()),this,SLOT(send_topo()));
-    connect(timercheckconfig,SIGNAL(timeout()),this,SLOT(checkconfig()));//发送链路配置信息
-    connect(timercheckconfig,SIGNAL(timeout()),this,SLOT(checkconfig()));//发送链路配置信息
+    //connect(timercheckconfig,SIGNAL(timeout()),this,SLOT(checkconfig()));//发送链路配置信息
     connect(dataTimer,SIGNAL(timeout()),this,SLOT(realtimeDataSlot()));
 
 
@@ -413,7 +412,7 @@ void MainWindow::on_pushButton_sim_start_clicked()
 
     readTopoTxt(sceneIndex);
     timer_count->start(1000);
-    timercheckconfig->start(1000);
+
 
 
 }
@@ -422,7 +421,6 @@ void MainWindow::on_pushButton_sim_end_clicked()
 {
     //timer_send_topo->stop();
     timer_count->stop();
-    timercheckconfig->stop();
     moveGif_clear();
 
     ui->pushButton_start->setEnabled(false);
@@ -463,6 +461,25 @@ void MainWindow::on_pushButton_link_end_clicked()
     ui->pushButton_sim_start->setEnabled(false);
     udpConnect("linktest_end");
     ui->textEdit_log->append("链路测试结束");
+
+    dataTimer->stop();
+    timercheckconfig->stop();
+
+    ui->widget_delay->graph(0)->data().data()->clear();
+    ui->widget_error->graph(0)->data().data()->clear();
+    ui->widget_band->graph(0)->data().data()->clear();
+
+    ui->widget_delay->graph(1)->data().data()->clear();
+    ui->widget_error->graph(1)->data().data()->clear();
+    ui->widget_band->graph(1)->data().data()->clear();
+
+    ui->widget_delay->graph(1)->data().data()->clear();
+    ui->widget_error->graph(1)->data().data()->clear();
+    ui->widget_band->graph(1)->data().data()->clear();
+
+    ui->widget_delay->graph(1)->data().data()->clear();
+    ui->widget_error->graph(1)->data().data()->clear();
+    ui->widget_band->graph(1)->data().data()->clear();
 }
 
 void MainWindow::readPendingDatagrams_listentomainctl()
@@ -634,6 +651,8 @@ void MainWindow::setupRealtimeDataDemo()
 void MainWindow::Test_link()
 {
   setupRealtimeDataDemo();
+  timercheckconfig->start(5000);
+  checkconfig();
 }
 
 void MainWindow::checkbox()//接入不可多选
@@ -674,7 +693,6 @@ void MainWindow::checkbox()//接入不可多选
         ui->checkBox_server->setEnabled(false);
         ui->checkBox_test->setEnabled(false);
     }
-
 
 }
 
@@ -769,10 +787,15 @@ void MainWindow::readPendingDatagrams_listentoN1()
     QString udpbuf_1;
     udpbuf_0 = QString(bufN1).section("*",0,0);
     udpbuf_1 = QString(bufN1).section("*",1,1);
-    if (QString(udpbuf_0)=="main_top")
+    if (udpbuf_0=="main_top")
      {
         multi_hop_vector(1,udpbuf_1);
      }
+    if(udpbuf_0=="linkTest_data")
+    {
+        delay1[0] = udpbuf_1.section(" ",0,0).toDouble();
+        error1[0] = udpbuf_1.section(" ",1,1).toDouble();
+    }
     //qDebug()<<QString(bufN1);
     ui->textEdit_log->append("N1:"+QString(bufN1));
     if(ui->comboBox_sendPing->currentIndex() == 0){
@@ -785,6 +808,19 @@ void MainWindow::readPendingDatagrams_listentoN2()
     QByteArray bufN2; //拥于存放接收的数据报
     bufN2.resize(udpSocketN2->pendingDatagramSize());
     udpSocketN2->readDatagram(bufN2.data(),bufN2.size());
+    QString udpbuf_0;//文件头部标识
+    QString udpbuf_1;
+    udpbuf_0 = QString(bufN2).section("*",0,0);
+    udpbuf_1 = QString(bufN2).section("*",1,1);
+    if (udpbuf_0=="main_top")
+     {
+        multi_hop_vector(2,udpbuf_1);
+     }
+    if(udpbuf_0=="linkTest_data")
+    {
+        delay2[0] = udpbuf_1.section(" ",0,0).toDouble();
+        error2[0] = udpbuf_1.section(" ",1,1).toDouble();
+    }
     //qDebug()<<QString(bufN2);
     //ui->textEdit_log->append("N2:"+QString(bufN2));
     if(ui->comboBox_sendPing->currentIndex() == 1){
@@ -797,6 +833,19 @@ void MainWindow::readPendingDatagrams_listentoN3()
     QByteArray bufN3; //拥于存放接收的数据报
     bufN3.resize(udpSocketN3->pendingDatagramSize());
     udpSocketN3->readDatagram(bufN3.data(),bufN3.size());
+    QString udpbuf_0;//文件头部标识
+    QString udpbuf_1;
+    udpbuf_0 = QString(bufN3).section("*",0,0);
+    udpbuf_1 = QString(bufN3).section("*",1,1);
+    if (udpbuf_0=="main_top")
+     {
+        multi_hop_vector(3,udpbuf_1);
+     }
+    if(udpbuf_0=="linkTest_data")
+    {
+        delay3[0] = udpbuf_1.section(" ",0,0).toDouble();
+        error3[0] = udpbuf_1.section(" ",1,1).toDouble();
+    }
     //qDebug()<<QString(bufN3);
     //ui->textEdit_log->append("N3:"+QString(bufN3));
     if(ui->comboBox_sendPing->currentIndex() == 2){
@@ -809,8 +858,23 @@ void MainWindow::readPendingDatagrams_listentoN4()
     QByteArray bufN4; //拥于存放接收的数据报
     bufN4.resize(udpSocketN4->pendingDatagramSize());
     udpSocketN4->readDatagram(bufN4.data(),bufN4.size());
+    QString udpbuf_0;//文件头部标识
+    QString udpbuf_1;
+    udpbuf_0 = QString(bufN4).section("*",0,0);
+    udpbuf_1 = QString(bufN4).section("*",1,1);
+    if (udpbuf_0=="main_top")
+     {
+        multi_hop_vector(4,udpbuf_1);
+     }
+    if(udpbuf_0=="linkTest_data")
+    {
+        delay4[0] = udpbuf_1.section(" ",0,0).toDouble();
+        error4[0] = udpbuf_1.section(" ",1,1).toDouble();
+    }
     //qDebug()<<QString(bufN4);
-    //ui->textEdit_log->append("N4:"+QString(bufN4));
+    ui->textEdit_log->append("N4:"+QString(bufN4));
+
+
     if(ui->comboBox_sendPing->currentIndex() == 3){
         ui->plainTextEdit_pingInfo->appendPlainText("N4:"+QString(bufN4));
     }
@@ -1016,8 +1080,8 @@ QVector<int> MainWindow::two_vector_bu(QVector<int> a, QVector<int> b)
 
 void MainWindow::multi_hop_vector(int num, QString str)
 {
-    bool isExitG1;
-    bool isExitG2;
+    bool isExitG1 = false;
+    bool isExitG2 = false;
     int tmp;
     QVector<int> a;//字符串转为的数组
     QVector<int> bl;//包含左多跳节点的数组
@@ -1049,60 +1113,79 @@ void MainWindow::multi_hop_vector(int num, QString str)
     }
 }
 void MainWindow::checkconfig(){
+
+    QString N1;
+    QString N2;
+    QString N3;
+    QString N4;
+
     if(ui->lineEdit_delay_D1_7->text().isEmpty() == true || ui->lineEdit_loss_D1_7->text().isEmpty() == true)
     {
-        QString N1 = QString("link_config*0#0");
+        N1 = QString("link_config*0#0");
         udpSocketN1->writeDatagram(N1.toUtf8(),N1_ctlip,portn1);
     }
     else
     {
-        QString N1 = QString("link_config*%1#%2").arg(ui->lineEdit_delay_D1_7->text().toDouble()).arg(ui->lineEdit_loss_D1_7->text().toDouble());
+        N1 = QString("link_config*%1#%2").arg(ui->lineEdit_delay_D1_7->text().toDouble()).arg(ui->lineEdit_loss_D1_7->text().toDouble());
         udpSocketN1->writeDatagram(N1.toUtf8(),N1_ctlip,portn1);
     }
 
     if(ui->lineEdit_delay_D2_7->text().isEmpty() == true || ui->lineEdit_loss_D2_7->text().isEmpty() == true)
     {
-        QString N2 = QString("link_config*0#0");
+        N2 = QString("link_config*0#0");
         udpSocketN2->writeDatagram(N2.toUtf8(),N2_ctlip,portn2);
     }
     else
     {
-        QString N2 = QString("link_config*%1#%2").arg(ui->lineEdit_delay_D2_7->text().toDouble()).arg(ui->lineEdit_loss_D2_7->text().toDouble());
+        N2 = QString("link_config*%1#%2").arg(ui->lineEdit_delay_D2_7->text().toDouble()).arg(ui->lineEdit_loss_D2_7->text().toDouble());
         udpSocketN2->writeDatagram(N2.toUtf8(),N2_ctlip,portn2);
     }
 
     if(ui->lineEdit_delay_D3_7->text().isEmpty() == true || ui->lineEdit_loss_D3_7->text().isEmpty() == true)
     {
-        QString N3 = QString("link_config*0#0");
+        N3 = QString("link_config*0#0");
         udpSocketN3->writeDatagram(N3.toUtf8(),N3_ctlip,portn3);
     }
     else
     {
-        QString N3 = QString("link_config*%1#%2").arg(ui->lineEdit_delay_D3_7->text().toDouble()).arg(ui->lineEdit_loss_D3_7->text().toDouble());
+        N3 = QString("link_config*%1#%2").arg(ui->lineEdit_delay_D3_7->text().toDouble()).arg(ui->lineEdit_loss_D3_7->text().toDouble());
         udpSocketN3->writeDatagram(N3.toUtf8(),N3_ctlip,portn3);
     }
 
     if(ui->lineEdit_delay_D4_7->text().isEmpty() == true || ui->lineEdit_loss_D4_7->text().isEmpty() == true)
     {
-        QString N4 = QString("link_config*0#0");
+        N4 = QString("link_config*0#0");
         udpSocketN4->writeDatagram(N4.toUtf8(),N4_ctlip,portn4);
+        qDebug()<<N4;
     }
     else
     {
-        QString N4 = QString("link_config*%1#%2").arg(ui->lineEdit_delay_D4_7->text().toDouble()).arg(ui->lineEdit_loss_D4_7->text().toDouble());
+        N4 = QString("link_config*%1#%2").arg(ui->lineEdit_delay_D4_7->text().toDouble()).arg(ui->lineEdit_loss_D4_7->text().toDouble());
         udpSocketN4->writeDatagram(N4.toUtf8(),N4_ctlip,portn4);
+        qDebug()<<N4;
     }
 
 }
 
-int MainWindow::MainWindow::getRandom(int min, int max)
+int MainWindow::MainWindow::getRandom(const int min, const int max)
 {
-    int a[max-min];
-    int i;
-    for(i=min; i<=max-min-1; ++i) a[i]=i;
-    for(i=max-min-1; i>=min; --i) std::swap(a[i], a[rand()%i]);
-    count_j++;
-    return a[count_j];
+    static QVector<int> a(max-min);
+    int i = min;
+    static int count_j=0;
+    QTime time;
+    time= QTime::currentTime();
+    qsrand(time.msec()+time.second()*1000);
+    int t = qrand() % (max-min);
+    if(count_j==0)
+    {
+        for (auto &n : a) {
+            n = i;
+            ++i;
+        }
+    }
+    ++count_j;
+    //qDebug()<<a.at(t);
+    return a.at(t);
 
 }
 
@@ -1112,8 +1195,12 @@ void MainWindow::realtimeDataSlot()
 
     double key = time.elapsed()/1000.0; // 开始到现在的时间，单位秒
     static double lastPointKey = 0;
-    delay1[0] = getRandom(100,500);
-    qDebug()<<delay1[0];
+
+    //delay1[0] = getRandom(100,500);
+    //delay1[0] = getRandom(100,500);
+    //delay1[0] = getRandom(100,500);
+    //delay4[0] = getRandom(100,500);
+    //qDebug()<<delay1[0];
 
     if (key-lastPointKey > 1) // 大约2s添加一次数据
     {

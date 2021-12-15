@@ -96,7 +96,7 @@ private slots:
 
     void checkconfig();//
 
-    int getRandom(int min,int max);//生成随机数
+    int getRandom(const int min,const int max);//生成随机数
 
 private:
     Ui::MainWindow *ui;
@@ -123,7 +123,7 @@ private:
     int sendPing;
     int receivePing;
     int count=1;
-    int count_j=0;
+
     int topoVlaue;
     QString path;//场景拓扑路径
 
@@ -169,14 +169,14 @@ private:
 
 
     //udp定义
-    qint16 port_Remote_master = 9001;//远程主监听端口
-    qint16 portn1 = 7001;//主控下发命令
-    qint16 portn2 = 7002;//主控下发命令
-    qint16 portn3 = 7003;//主控下发命令
-    qint16 portn4 = 7004;//主控下发命令
-    qint16 portg1 = 7005;//主控下发命令
-    qint16 portg2 = 7006;//主控下发命令
-    QVector<qint16> port;
+    quint16 port_Remote_master = 9001;//远程主监听端口
+    quint16 portn1 = 7001;//主控下发命令
+    quint16 portn2 = 7002;//主控下发命令
+    quint16 portn3 = 7003;//主控下发命令
+    quint16 portn4 = 7004;//主控下发命令
+    quint16 portg1 = 7005;//主控下发命令
+    quint16 portg2 = 7006;//主控下发命令
+    QVector<quint16> port;
     QString const n1_ctlip = "10.0.7.1";
     QString const n2_ctlip = "10.0.7.2";
     QString const n3_ctlip = "10.0.7.3";
